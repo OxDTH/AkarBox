@@ -1,8 +1,20 @@
-# AkarBox
+<p align="center">
+  <img src="frontend/public/favicon.svg" alt="AkarBox logo" width="96" height="96">
+</p>
 
-A lightweight, self-hosted file converter: drop in a file, pick any format it can become, download the result.
+<h1 align="center">AkarBox</h1>
 
-> **Status:** early development. The core engine, web UI, Docker image and desktop app work; expect rough edges.
+<p align="center">
+  A lightweight, self-hosted file converter: drop in a file, pick any format it can become, download the result.
+</p>
+
+> **Status:** early development. The core engine, web UI and desktop app work; expect rough edges.
+
+## About us
+
+We're students learning Rust by building something useful. AkarBox is our way to learn the language on a real project while giving the self-hosting community a free, private, open-source converter.
+
+That means the code is written to be readable for beginners: Rust concepts are explained in comments, and [docs/LEARNING_RUST.md](docs/LEARNING_RUST.md) maps each concept to where it appears. If you're learning Rust too, you're very welcome here. Questions, reviews and pull requests are all appreciated, and if you're experienced with Rust, we'd love your feedback on how to write it better.
 
 ## How it works
 
