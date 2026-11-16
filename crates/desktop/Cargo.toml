@@ -1,0 +1,15 @@
+[package]
+name = "akarbox-desktop"
+description = "AkarBox desktop app (Tauri): runs the AkarBox server privately and shows it in a native window."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+akarbox-server.workspace = true
+tauri = { version = "2", features = [] }
+tokio.workspace = true
+tracing-subscriber.workspace = true

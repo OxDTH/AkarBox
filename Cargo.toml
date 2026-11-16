@@ -1,0 +1,35 @@
+# A Cargo "workspace" groups several Rust crates (packages) that are built together
+# and share one Cargo.lock + one target/ directory.
+[workspace]
+resolver = "2"
+members = ["crates/core", "crates/server", "crates/desktop"]
+# `cargo build` / `cargo test` with no `-p` flag only builds these. The desktop
+# crate needs GTK/WebKit system libraries, so it is opt-in: `cargo build -p akarbox-desktop`.
+default-members = ["crates/core", "crates/server", "crates/desktop"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/unsuman/AkarBox"
+
+# Versions declared once here; crates opt in with `foo = { workspace = true }`.
+[workspace.dependencies]
+akarbox-core = { path = "crates/core" }
+akarbox-server = { path = "crates/server" }
+anyhow = "1"
+axum = { version = "0.8", features = ["multipart"] }
+mime_guess = "2"
+rust-embed = "8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tempfile = "3"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.6", features = ["trace", "limit"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[profile.release]
+lto = "thin"
+strip = true

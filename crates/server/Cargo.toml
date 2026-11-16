@@ -1,0 +1,28 @@
+[package]
+name = "akarbox-server"
+description = "Self-hosted web server for AkarBox: JSON API + embedded web UI."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# This crate is both a library (used by the desktop app) and a binary (`akarbox-server`).
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "akarbox-server"
+path = "src/main.rs"
+
+[dependencies]
+akarbox-core.workspace = true
+anyhow.workspace = true
+axum.workspace = true
+mime_guess.workspace = true
+rust-embed.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
