@@ -32,3 +32,12 @@ uploads/
 .env
 .env.*
 !.env.example
+
+# Rust
+target/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Tauri generated files
+crates/desktop/gen/

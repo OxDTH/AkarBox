@@ -1,0 +1,12 @@
+[package]
+name = "akarbox-core"
+description = "Conversion engine for AkarBox: formats, converters and the planner that chains them."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+tempfile.workspace = true
+thiserror.workspace = true
+tracing.workspace = true

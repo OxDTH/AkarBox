@@ -1,0 +1,15 @@
+services:
+  akarbox:
+    build: .
+    container_name: akarbox
+    ports:
+      - "8080:8080"
+    environment:
+      # Max upload size in MB, and how many conversions may run at once.
+      AKARBOX_MAX_UPLOAD_MB: "1024"
+      # AKARBOX_MAX_JOBS: "4"
+      RUST_LOG: info
+    # Conversions happen in a scratch area that is wiped on restart.
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
