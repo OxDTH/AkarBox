@@ -16,11 +16,15 @@ mod converter;
 pub mod converters;
 mod error;
 mod format;
+mod options;
+pub mod pdf;
 mod registry;
+mod sniff;
 
 // `pub use` re-exports items so users can write `akarbox_core::Registry`
 // instead of `akarbox_core::registry::Registry`.
-pub use converter::{run_command, Converter, Edge, Step};
+pub use converter::{run_command, run_command_output, Converter, Edge, Produced, Step};
 pub use error::{Error, Result};
-pub use format::{detect_format, normalize_ext, Category, Format, FORMATS};
-pub use registry::{Plan, PlannedStep, Registry, Target};
+pub use format::{detect_format, format_from_name, normalize_ext, Category, Format, FORMATS};
+pub use options::Options;
+pub use registry::{zip_files, Output, Plan, PlannedStep, Registry, Target};

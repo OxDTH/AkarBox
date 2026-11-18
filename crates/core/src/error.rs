@@ -16,12 +16,24 @@ pub enum Error {
     #[error("`{program}` failed: {stderr}")]
     CommandFailed { program: String, stderr: String },
 
+    #[error("invalid options: {0}")]
+    InvalidOptions(String),
+
+    #[error("invalid page selection: {0}")]
+    InvalidPages(String),
+
+    #[error("{0}")]
+    Unsupported(String),
+
     #[error("converter finished but did not produce {0}")]
     MissingOutput(PathBuf),
 
     /// `#[from]` lets the `?` operator turn a `std::io::Error` into ours automatically.
     #[error(transparent)]
     Io(#[from] std::io::Error),
+
+    #[error("could not create zip archive: {0}")]
+    Zip(#[from] zip::result::ZipError),
 }
 
 /// Shorthand so we can write `Result<T>` instead of `Result<T, Error>` everywhere.

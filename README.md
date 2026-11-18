@@ -26,16 +26,27 @@ md ──pandoc──▶ docx ──libreoffice──▶ pdf ──imagemagick�
 
 So adding one converter makes new combinations possible with every other converter, without extra work.
 
+## Features
+
+- **Convert anything to anything** that the installed tools can reach, chaining tools when needed
+- **Batch conversion**: drop many files, pick a format per file or one for all, then download everything as a `.zip`
+- **Smart format detection** from the file's contents, so wrong or missing extensions still work
+- **Conversion options**: image quality and max size, video resolution, audio bitrate, remove audio, PDF render DPI
+- **PDF tools**: merge several PDFs (drag to reorder) and extract page ranges such as `1-3, 5, 8-end`
+- **Multi-page PDFs → images**: every page is converted and bundled into a `.zip`
+- **iPhone photos (HEIC)** convert to JPG, PNG, WebP and more
+
 ## Supported formats
 
 | Category      | Formats                                              | Tool        |
 |---------------|------------------------------------------------------|-------------|
 | Images        | png, jpg, webp, gif, bmp, tiff, ico, avif, svg (in)  | ImageMagick |
+| iPhone photos | heic, heif (in)                                      | libheif     |
 | Audio         | mp3, wav, flac, ogg, opus, m4a, aac                  | FFmpeg      |
 | Video         | mp4, mkv, webm, mov, avi, → gif, → audio             | FFmpeg      |
 | Office        | docx, doc, odt, rtf, xlsx, xls, ods, csv, pptx, ppt, odp → pdf | LibreOffice |
 | Markup/ebooks | md, html, rst, tex, epub, txt                        | Pandoc      |
-| PDF           | pdf ↔ images                                         | ImageMagick + Ghostscript |
+| PDF           | pdf ↔ images, merge, extract pages                   | Ghostscript, ImageMagick, qpdf |
 
 Converters whose tool isn't installed are skipped automatically.
 
@@ -61,8 +72,10 @@ Then open <http://localhost:8080>.
 The desktop app runs the same server privately on `127.0.0.1` and shows it in a native window. You need the converter tools installed on your system. On Debian/Ubuntu:
 
 ```bash
-sudo apt install ffmpeg imagemagick ghostscript librsvg2-bin pandoc libreoffice
+sudo apt install ffmpeg imagemagick ghostscript librsvg2-bin pandoc libreoffice qpdf libheif-examples
 ```
+
+On Ubuntu 24.04 and newer, HEIC decoding also needs `libheif-plugin-libde265`.
 
 ## Develop
 
@@ -101,6 +114,8 @@ Run tests and lints:
 cargo test && cargo clippy --workspace --all-targets
 ```
 
+Tests in `crates/core/tests/real_tools.rs` run the real converter tools and skip themselves if a tool isn't installed.
+
 ### Project layout
 
 ```
@@ -118,11 +133,10 @@ New converters are the easiest way to help. See [docs/ADDING_A_CONVERTER.md](doc
 
 ## Roadmap
 
-- PDF merge / split / compress
-- Multi-page PDF → images (as a zip)
-- Batch conversion and a job queue with progress
-- Conversion options (quality, resolution, bitrate)
-- Detect formats from file contents, not just the extension
+- Paste images from the clipboard
+- Compression mode: shrink a PDF, image or video without changing its format, or to a target file size
+- Camera RAW photos (CR2, NEF, ARW, DNG)
+- Hardware-accelerated video encoding
 - Optional media downloader (off by default, since it needs internet access)
 
 ## Privacy & Security
