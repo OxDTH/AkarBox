@@ -24,6 +24,28 @@ export interface Info {
   version: string;
   converters: string[];
   formats: Format[];
+  pdf_tools: boolean;
+}
+
+/** Mirrors `Options` in crates/core/src/options.rs. Omitted fields = defaults. */
+export interface Options {
+  quality?: number;
+  max_width?: number;
+  max_height?: number;
+  audio_bitrate_kbps?: number;
+  video_height?: number;
+  strip_audio?: boolean;
+  dpi?: number;
+}
+
+export interface Detected {
+  format: Format;
+  targets: Target[];
+}
+
+export interface Result {
+  blob: Blob;
+  fileName: string;
 }
 
 async function json<T>(res: Response): Promise<T> {
@@ -43,56 +65,72 @@ async function errorMessage(res: Response): Promise<string> {
 
 export const getInfo = () => fetch("/api/info").then((r) => json<Info>(r));
 
-export const getTargets = (ext: string) =>
-  fetch(`/api/targets/${encodeURIComponent(ext)}`).then((r) => json<Target[]>(r));
-
-export interface ConvertResult {
-  blob: Blob;
-  fileName: string;
-}
-
 /**
- * Upload a file and get the converted file back.
- * Uses XMLHttpRequest (not fetch) because only XHR reports upload progress.
+ * Ask the server what a file is. Only the first 4 KB are sent: the server
+ * recognises formats from their first bytes ("magic numbers") and the name.
  */
+export const detect = (file: File) =>
+  fetch(`/api/detect?name=${encodeURIComponent(file.name)}`, {
+    method: "POST",
+    body: file.slice(0, 4096),
+  }).then((r) => json<Detected>(r));
+
 export function convert(
   file: File,
   target: string,
+  options: Options,
   onUploadProgress: (fraction: number) => void,
   signal?: AbortSignal,
-): Promise<ConvertResult> {
+): Promise<Result> {
+  const form = new FormData();
+  form.append("target", target); // small fields first, so the server has them early
+  form.append("options", JSON.stringify(options));
+  form.append("file", file);
+  return upload("/api/convert", form, onUploadProgress, signal);
+}
+
+export function mergePdfs(files: File[], onUploadProgress: (f: number) => void, signal?: AbortSignal) {
+  const form = new FormData();
+  for (const f of files) form.append("file", f);
+  return upload("/api/pdf/merge", form, onUploadProgress, signal);
+}
+
+export function splitPdf(file: File, pages: string, onUploadProgress: (f: number) => void, signal?: AbortSignal) {
+  const form = new FormData();
+  form.append("pages", pages);
+  form.append("file", file);
+  return upload("/api/pdf/split", form, onUploadProgress, signal);
+}
+
+/**
+ * POST a form and get a file back.
+ * Uses XMLHttpRequest (not fetch) because only XHR reports upload progress.
+ */
+function upload(
+  url: string,
+  form: FormData,
+  onUploadProgress: (fraction: number) => void,
+  signal?: AbortSignal,
+): Promise<Result> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/convert");
+    xhr.open("POST", url);
     xhr.responseType = "blob";
     xhr.upload.onprogress = (e) => e.lengthComputable && onUploadProgress(e.loaded / e.total);
+    xhr.upload.onload = () => onUploadProgress(1);
     xhr.onerror = () => reject(new Error("Network error"));
     xhr.onabort = () => reject(new DOMException("Cancelled", "AbortError"));
     xhr.onload = async () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         const disposition = xhr.getResponseHeader("Content-Disposition") ?? "";
         const match = /filename="([^"]+)"/.exec(disposition);
-        const fallback = file.name.replace(/\.[^.]+$/, "") + "." + target;
-        resolve({ blob: xhr.response as Blob, fileName: match?.[1] ?? fallback });
+        resolve({ blob: xhr.response as Blob, fileName: match?.[1] ?? "download" });
       } else {
         const res = new Response(xhr.response as Blob, { status: xhr.status, statusText: xhr.statusText });
         reject(new Error(await errorMessage(res)));
       }
     };
     signal?.addEventListener("abort", () => xhr.abort());
-
-    const form = new FormData();
-    form.append("target", target); // send target first so the server knows it early
-    form.append("file", file);
     xhr.send(form);
   });
-}
-
-/** Same rules as the Rust `normalize_ext` + `detect_format`. */
-export function extensionOf(name: string): string | null {
-  const m = /\.([^./\\]+)$/.exec(name);
-  if (!m) return null;
-  const ext = m[1].toLowerCase();
-  const aliases: Record<string, string> = { jpeg: "jpg", jpe: "jpg", tif: "tiff", htm: "html", markdown: "md", text: "txt" };
-  return aliases[ext] ?? ext;
 }

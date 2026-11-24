@@ -1,4 +1,4 @@
-use crate::converter::{all_pairs, on_path, run_command, Converter, Edge, Step};
+use crate::converter::{all_pairs, on_path, run_command, Converter, Edge, Produced, Step};
 use crate::Result;
 use std::process::Command;
 
@@ -27,22 +27,46 @@ impl Converter for Ffmpeg {
         edges
     }
 
-    fn convert(&self, step: &Step) -> Result<()> {
+    fn convert(&self, step: &Step) -> Result<Produced> {
+        let opts = step.options;
+        let to_audio = AUDIO.contains(&step.to);
         let mut cmd = Command::new("ffmpeg");
         cmd.args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
             .arg(step.input);
 
-        if AUDIO.contains(&step.to) {
+        if to_audio {
             cmd.arg("-vn"); // drop any video stream
+        } else if opts.strip_audio {
+            cmd.arg("-an"); // drop the audio stream
         }
+
         if step.to == "gif" {
-            // Reasonable default: 12 fps, 480px wide, good palette.
+            // 12 fps and a generated palette give small, good-looking GIFs.
+            let width = opts.max_width.unwrap_or(480);
             cmd.args([
                 "-vf",
-                "fps=12,scale=480:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse",
+                &format!(
+                    "fps=12,scale='min({width},iw)':-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse"
+                ),
             ]);
+        } else if !to_audio {
+            // `min(...,ih)` means we only ever shrink. `-2` keeps the aspect ratio
+            // and an even width, which most video codecs require.
+            if let Some(h) = opts.video_height {
+                cmd.args(["-vf", &format!("scale=-2:'min({h},ih)'")]);
+            } else if let Some(w) = opts.max_width {
+                cmd.args(["-vf", &format!("scale='min({w},iw)':-2")]);
+            }
         }
+
+        if let Some(kbps) = opts.audio_bitrate_kbps {
+            if step.to != "gif" && !(opts.strip_audio && !to_audio) {
+                cmd.args(["-b:a", &format!("{kbps}k")]);
+            }
+        }
+
         cmd.arg(step.output);
-        run_command(&mut cmd)
+        run_command(&mut cmd)?;
+        Ok(Produced::File)
     }
 }

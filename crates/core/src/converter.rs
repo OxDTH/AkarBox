@@ -1,6 +1,6 @@
 //! The `Converter` trait: the plug-in interface every converter implements.
 
-use crate::{Error, Result};
+use crate::{Error, Options, Result};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -23,6 +23,20 @@ pub struct Step<'a> {
     pub to: &'a str,
     /// A private scratch directory for this step (deleted afterwards).
     pub work_dir: &'a Path,
+    /// User settings. Only the *last* step of a plan receives the user's options;
+    /// intermediate steps get the defaults so settings aren't applied twice.
+    pub options: &'a Options,
+}
+
+/// What a conversion step produced.
+///
+/// Most converters write exactly one file to `step.output` and return `File`.
+/// Some inputs naturally become several files (a 10-page PDF -> 10 PNGs); those
+/// converters return every file in order, and AkarBox zips them up.
+#[derive(Debug)]
+pub enum Produced {
+    File,
+    Pages(Vec<PathBuf>),
 }
 
 /// A trait is like an interface: a set of methods a type promises to provide.
@@ -44,8 +58,8 @@ pub trait Converter: Send + Sync {
     /// All conversions this converter supports.
     fn edges(&self) -> Vec<Edge>;
 
-    /// Convert `step.input` into `step.output`.
-    fn convert(&self, step: &Step) -> Result<()>;
+    /// Convert `step.input` into `step.output` (or into several files, see [`Produced`]).
+    fn convert(&self, step: &Step) -> Result<Produced>;
 }
 
 /// Helper: build every `from -> to` edge between two lists, skipping `x -> x`.
@@ -60,11 +74,16 @@ pub(crate) fn all_pairs(from: &[&'static str], to: &[&'static str], cost: u32) -
 
 /// Run an external program and turn a non-zero exit code into an [`Error`].
 pub fn run_command(cmd: &mut Command) -> Result<()> {
+    run_command_output(cmd).map(|_| ())
+}
+
+/// Like [`run_command`], but returns what the program printed to stdout.
+pub fn run_command_output(cmd: &mut Command) -> Result<String> {
     let program = cmd.get_program().to_string_lossy().into_owned();
     tracing::debug!(?cmd, "running");
     let out = cmd.output()?; // `?` converts io::Error -> Error::Io via `#[from]`
     if out.status.success() {
-        Ok(())
+        Ok(String::from_utf8_lossy(&out.stdout).into_owned())
     } else {
         let stderr = String::from_utf8_lossy(&out.stderr);
         // Keep the message short: only the last few lines are usually useful.

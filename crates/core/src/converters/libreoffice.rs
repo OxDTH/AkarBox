@@ -1,4 +1,4 @@
-use crate::converter::{all_pairs, find_on_path, run_command, Converter, Edge, Step};
+use crate::converter::{all_pairs, find_on_path, run_command, Converter, Edge, Produced, Step};
 use crate::{Error, Result};
 use std::path::PathBuf;
 use std::process::Command;
@@ -43,7 +43,7 @@ impl Converter for LibreOffice {
         edges
     }
 
-    fn convert(&self, step: &Step) -> Result<()> {
+    fn convert(&self, step: &Step) -> Result<Produced> {
         let program = self.program.as_ref().expect("checked by is_available");
 
         // Each run gets its own LibreOffice profile; otherwise two conversions at
@@ -72,6 +72,6 @@ impl Converter for LibreOffice {
             return Err(Error::MissingOutput(produced));
         }
         std::fs::rename(produced, step.output)?;
-        Ok(())
+        Ok(Produced::File)
     }
 }
