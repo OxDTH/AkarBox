@@ -53,6 +53,8 @@ pub static FORMATS: &[Format] = &[
     f("ico", "Icon", Image),
     f("avif", "AVIF image", Image),
     f("svg", "SVG vector image", Image),
+    f("heic", "HEIC photo (iPhone)", Image),
+    f("heif", "HEIF image", Image),
     // Audio
     f("mp3", "MP3 audio", Audio),
     f("wav", "WAV audio", Audio),
@@ -111,18 +113,35 @@ pub fn normalize_ext(ext: &str) -> String {
         "htm" => "html".into(),
         "markdown" => "md".into(),
         "text" => "txt".into(),
+        "hif" => "heif".into(),
         _ => ext,
     }
 }
 
-/// Guess a file's format from its name, e.g. `"Holiday.JPEG"` -> `jpg`.
-///
-/// TODO(good first issue): also sniff the first bytes of the file ("magic numbers")
-/// so files with a wrong or missing extension still work.
-pub fn detect_format(file_name: &str) -> Option<&'static Format> {
+/// Guess a file's format from its name only, e.g. `"Holiday.JPEG"` -> `jpg`.
+pub fn format_from_name(file_name: &str) -> Option<&'static Format> {
     let ext = Path::new(file_name).extension()?.to_str()?;
     //                                           ^ `?` on an Option returns `None` early.
     Format::get(ext)
+}
+
+/// Work out a file's format from its name *and* its first bytes.
+///
+/// `header` should be the first few KB of the file (4096 bytes is plenty).
+/// The content wins when it is unambiguous, so a PNG renamed to `photo.jpg`, or a
+/// file with no extension at all, is still detected correctly. Formats that can't
+/// be recognised from their bytes (Markdown, CSV, ...) fall back to the extension.
+pub fn detect_format(file_name: &str, header: &[u8]) -> Option<&'static Format> {
+    let by_name = format_from_name(file_name);
+    let Some(sniffed) = crate::sniff::sniff(header) else {
+        return by_name;
+    };
+    match by_name {
+        // Some containers are shared by several formats (an `.m4a` *is* an MP4
+        // file). If the extension is a sibling of what we sniffed, trust the user.
+        Some(named) if crate::sniff::same_family(named.ext, sniffed) => Some(named),
+        _ => Format::get(sniffed),
+    }
 }
 
 // Unit tests live right next to the code. Run them with `cargo test`.
@@ -132,10 +151,32 @@ mod tests {
 
     #[test]
     fn detects_aliases_and_case() {
-        assert_eq!(detect_format("Holiday.JPEG").unwrap().ext, "jpg");
-        assert_eq!(detect_format("notes.markdown").unwrap().ext, "md");
-        assert_eq!(detect_format("archive.tar.xz").map(|f| f.ext), None);
-        assert!(detect_format("no_extension").is_none());
+        assert_eq!(format_from_name("Holiday.JPEG").unwrap().ext, "jpg");
+        assert_eq!(format_from_name("notes.markdown").unwrap().ext, "md");
+        assert_eq!(format_from_name("archive.tar.xz").map(|f| f.ext), None);
+        assert!(format_from_name("no_extension").is_none());
+    }
+
+    const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR";
+
+    #[test]
+    fn content_beats_a_wrong_extension() {
+        assert_eq!(detect_format("photo.jpg", PNG).unwrap().ext, "png");
+        assert_eq!(detect_format("no_extension", PNG).unwrap().ext, "png");
+    }
+
+    #[test]
+    fn falls_back_to_extension_for_text_formats() {
+        assert_eq!(detect_format("notes.md", b"# Hello").unwrap().ext, "md");
+        assert_eq!(detect_format("data.csv", b"a,b\n1,2").unwrap().ext, "csv");
+        assert!(detect_format("mystery", b"just some text").is_none());
+    }
+
+    #[test]
+    fn keeps_extension_within_the_same_family() {
+        let m4a = b"\0\0\0\x20ftypisom\0\0\x02\0isomiso2mp41";
+        assert_eq!(detect_format("song.m4a", m4a).unwrap().ext, "m4a");
+        assert_eq!(detect_format("clip", m4a).unwrap().ext, "mp4");
     }
 
     #[test]

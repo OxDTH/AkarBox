@@ -15,7 +15,7 @@ f("heic", "HEIC image", Image),
 Create `crates/core/src/converters/mytool.rs`:
 
 ```rust
-use crate::converter::{all_pairs, on_path, run_command, Converter, Edge, Step};
+use crate::converter::{all_pairs, on_path, run_command, Converter, Edge, Produced, Step};
 use crate::Result;
 use std::process::Command;
 
@@ -35,8 +35,9 @@ impl Converter for MyTool {
         all_pairs(&["heic"], &["png", "jpg"], 1)
     }
 
-    fn convert(&self, step: &Step) -> Result<()> {
-        run_command(Command::new("mytool").arg(step.input).arg(step.output))
+    fn convert(&self, step: &Step) -> Result<Produced> {
+        run_command(Command::new("mytool").arg(step.input).arg(step.output))?;
+        Ok(Produced::File)
     }
 }
 ```
@@ -49,6 +50,9 @@ impl Converter for MyTool {
 | `output`   | Where to write the result (must exist when you return `Ok`)   |
 | `from`/`to`| Extensions, useful when one converter handles many formats    |
 | `work_dir` | A private scratch folder, deleted afterwards                  |
+| `options`  | The user's settings (`quality`, `max_width`, `audio_bitrate_kbps`...). Apply the ones that make sense for your tool and ignore the rest. Only the last step of a route receives them. |
+
+**Return value:** `Produced::File` when you wrote `step.output`. If the input naturally becomes several files (like one image per PDF page), write them into `work_dir` and return `Produced::Pages(paths)`. AkarBox zips them for the user.
 
 **Choosing a cost:** costs add up along a route and the cheapest route wins. Use `1` for fast, lossless conversions and higher numbers for slow or lossy ones. LibreOffice uses `3` because it takes a second or two to start.
 
@@ -64,4 +68,8 @@ cargo run -p akarbox-server
 curl -F target=png -F file=@photo.heic localhost:8080/api/convert -o out.png
 ```
 
-Set `RUST_LOG=debug` to see the exact commands that run. If your tool needs a new system package, add it to the `Dockerfile` and the README.
+Set `RUST_LOG=debug` to see the exact commands that run. If your tool needs a new system package, add it to the `Dockerfile`, `.github/workflows/ci.yml` and the README.
+
+Add a test to `crates/core/tests/real_tools.rs` that creates a small sample file, converts it, and checks the result. Start it with `require!("mytool");` so it skips itself on machines without the tool. `heic_converts_via_libheif` is a good example to copy.
+
+**Also teach AkarBox to recognise the format.** If your format has a fixed signature at the start of the file, add it to `sniff()` in `crates/core/src/sniff.rs`, with a test case.

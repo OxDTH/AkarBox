@@ -1,4 +1,4 @@
-use crate::converter::{on_path, run_command, Converter, Edge, Step};
+use crate::converter::{on_path, run_command, Converter, Edge, Produced, Step};
 use crate::Result;
 use std::process::Command;
 
@@ -45,7 +45,7 @@ impl Converter for Pandoc {
         crate::converter::all_pairs(INPUTS, OUTPUTS, 1)
     }
 
-    fn convert(&self, step: &Step) -> Result<()> {
+    fn convert(&self, step: &Step) -> Result<Produced> {
         let mut cmd = Command::new("pandoc");
         cmd.args(["--standalone", "-f"])
             .arg(reader(step.from).unwrap_or(step.from))
@@ -56,6 +56,7 @@ impl Converter for Pandoc {
             .arg("-o")
             .arg(step.output)
             .arg(step.input);
-        run_command(&mut cmd)
+        run_command(&mut cmd)?;
+        Ok(Produced::File)
     }
 }

@@ -4,7 +4,10 @@
 //! |--------|----------------------|---------------------------------------------------|
 //! | GET    | `/api/info`          | Version, available converters, format catalogue  |
 //! | GET    | `/api/targets/{ext}` | Formats a given input format can be converted to   |
-//! | POST   | `/api/convert`       | Multipart upload (`file`, `target`) -> converted file |
+//! | POST   | `/api/detect?name=`  | First bytes of a file -> its format + targets      |
+//! | POST   | `/api/convert`       | Multipart (`file`, `target`, `options`) -> converted file (or zip) |
+//! | POST   | `/api/pdf/merge`     | Multipart, several `file`s -> one merged PDF       |
+//! | POST   | `/api/pdf/split`     | Multipart (`file`, `pages`) -> PDF with only those pages |
 //! | GET    | everything else      | The embedded web UI                               |
 
 mod api;
@@ -58,13 +61,22 @@ pub struct AppState {
     /// Limits how many conversions run at the same time so a burst of uploads
     /// can't overload the machine.
     pub jobs: Arc<Semaphore>,
+    /// Is qpdf installed (needed for PDF merge/split)?
+    pub pdf_tools: bool,
 }
 
 pub fn router(state: AppState, config: &Config) -> Router {
     Router::new()
         .route("/api/info", get(api::info))
         .route("/api/targets/{ext}", get(api::targets))
+        // Detection only needs the first few KB of a file.
+        .route(
+            "/api/detect",
+            post(api::detect).layer(DefaultBodyLimit::max(64 * 1024)),
+        )
         .route("/api/convert", post(api::convert))
+        .route("/api/pdf/merge", post(api::pdf_merge))
+        .route("/api/pdf/split", post(api::pdf_split))
         .layer(DefaultBodyLimit::max(config.max_upload_bytes))
         .fallback(assets::static_handler)
         .layer(TraceLayer::new_for_http())
@@ -74,12 +86,17 @@ pub fn router(state: AppState, config: &Config) -> Router {
 /// Build the registry and serve until the process is stopped.
 pub async fn serve(listener: tokio::net::TcpListener, config: Config) -> std::io::Result<()> {
     // Probing for tools touches the filesystem, so do it off the async threads.
-    let registry = tokio::task::spawn_blocking(Registry::with_builtin)
-        .await
-        .expect("registry setup panicked");
+    let (registry, pdf_tools) =
+        tokio::task::spawn_blocking(|| (Registry::with_builtin(), akarbox_core::pdf::available()))
+            .await
+            .expect("registry setup panicked");
+    if !pdf_tools {
+        tracing::warn!("qpdf not installed: PDF merge/split disabled");
+    }
     let state = AppState {
         registry: Arc::new(registry),
         jobs: Arc::new(Semaphore::new(config.max_jobs)),
+        pdf_tools,
     };
     axum::serve(listener, router(state, &config)).await
 }

@@ -34,9 +34,12 @@ impl From<akarbox_core::Error> for ApiError {
     fn from(err: akarbox_core::Error) -> Self {
         use akarbox_core::Error::*;
         let status = match err {
-            UnknownFormat(_) | NoPath { .. } => StatusCode::BAD_REQUEST,
+            UnknownFormat(_) | NoPath { .. } | InvalidOptions(_) | InvalidPages(_) => {
+                StatusCode::BAD_REQUEST
+            }
+            Unsupported(_) => StatusCode::UNPROCESSABLE_ENTITY,
             CommandFailed { .. } => StatusCode::UNPROCESSABLE_ENTITY, // usually a bad input file
-            MissingOutput(_) | Io(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            MissingOutput(_) | Io(_) | Zip(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
         Self {
             status,
