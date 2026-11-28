@@ -29,12 +29,17 @@ So adding one converter makes new combinations possible with every other convert
 ## Features
 
 - **Convert anything to anything** that the installed tools can reach, chaining tools when needed
+- **A home screen that shows what this server can do**, with one-click presets like *HEIC → JPG* or *Compress PDF*
+- **Adaptive workspaces**: image previews with pixel size, audio and video players with duration, options that match the file
 - **Batch conversion**: drop many files, pick a format per file or one for all, then download everything as a `.zip`
+- **Paste a screenshot** with Ctrl+V / ⌘V
+- **Compress without changing format**: PDFs, images, video and audio, with Light / Balanced / Strong levels
+- **Hit a file-size limit**: "under 100 KB" for photos or "under 1 MB" for PDFs (for forms and email)
 - **Smart format detection** from the file's contents, so wrong or missing extensions still work
-- **Conversion options**: image quality and max size, video resolution, audio bitrate, remove audio, PDF render DPI
-- **PDF tools**: merge several PDFs (drag to reorder) and extract page ranges such as `1-3, 5, 8-end`
-- **Multi-page PDFs → images**: every page is converted and bundled into a `.zip`
-- **iPhone photos (HEIC)** convert to JPG, PNG, WebP and more
+- **PDF Studio**: pages to images (zipped), compress, merge (drag to reorder), extract page ranges like `1-3, 5, 8-end`
+- **iPhone photos (HEIC) and camera RAW** (CR2, CR3, NEF, ARW, DNG, RAF, RW2, ORF)
+- **GPU video encoding** (NVIDIA NVENC, Intel Quick Sync, VAAPI, Apple VideoToolbox) when available, with automatic CPU fallback
+- **Size comparison** on every result (`4.2 MB → 680 KB (−84%)`) and a light / dark theme switch
 
 ## Supported formats
 
@@ -42,11 +47,12 @@ So adding one converter makes new combinations possible with every other convert
 |---------------|------------------------------------------------------|-------------|
 | Images        | png, jpg, webp, gif, bmp, tiff, ico, avif, svg (in)  | ImageMagick |
 | iPhone photos | heic, heif (in)                                      | libheif     |
+| Camera RAW    | cr2, cr3, nef, arw, dng, raf, rw2, orf (in)          | LibRaw / dcraw |
 | Audio         | mp3, wav, flac, ogg, opus, m4a, aac                  | FFmpeg      |
 | Video         | mp4, mkv, webm, mov, avi, → gif, → audio             | FFmpeg      |
 | Office        | docx, doc, odt, rtf, xlsx, xls, ods, csv, pptx, ppt, odp → pdf | LibreOffice |
 | Markup/ebooks | md, html, rst, tex, epub, txt                        | Pandoc      |
-| PDF           | pdf ↔ images, merge, extract pages                   | Ghostscript, ImageMagick, qpdf |
+| PDF           | pdf ↔ images, compress, merge, extract pages         | Ghostscript, ImageMagick, qpdf |
 
 Converters whose tool isn't installed are skipped automatically.
 
@@ -65,14 +71,17 @@ Then open <http://localhost:8080>.
 | `AKARBOX_ADDR`         | `0.0.0.0:8080` | Listen address                           |
 | `AKARBOX_MAX_UPLOAD_MB`| `1024`         | Largest accepted upload                  |
 | `AKARBOX_MAX_JOBS`     | CPU count      | Conversions allowed to run at once       |
+| `AKARBOX_HWACCEL`      | `auto`         | GPU video encoding: `auto`, `off`, `nvenc`, `qsv`, `vaapi`, `videotoolbox` |
 | `RUST_LOG`             | `info`         | Log level (`debug` shows tool commands)  |
+
+**GPU video encoding.** With `auto`, AkarBox test-encodes one frame on each GPU encoder at startup and uses the first one that works. If a GPU encode fails later, it retries on the CPU. To use a GPU from Docker, uncomment the `devices` (Intel/AMD) or `deploy` (NVIDIA, needs the NVIDIA Container Toolkit) section in `docker-compose.yml`.
 
 ### Desktop app (Tauri)
 
 The desktop app runs the same server privately on `127.0.0.1` and shows it in a native window. You need the converter tools installed on your system. On Debian/Ubuntu:
 
 ```bash
-sudo apt install ffmpeg imagemagick ghostscript librsvg2-bin pandoc libreoffice qpdf libheif-examples
+sudo apt install ffmpeg imagemagick ghostscript librsvg2-bin pandoc libreoffice qpdf libheif-examples libraw-bin
 ```
 
 On Ubuntu 24.04 and newer, HEIC decoding also needs `libheif-plugin-libde265`.
@@ -133,10 +142,8 @@ New converters are the easiest way to help. See [docs/ADDING_A_CONVERTER.md](doc
 
 ## Roadmap
 
-- Paste images from the clipboard
-- Compression mode: shrink a PDF, image or video without changing its format, or to a target file size
-- Camera RAW photos (CR2, NEF, ARW, DNG)
-- Hardware-accelerated video encoding
+- Target file size for video and audio
+- Page thumbnails and page picking for PDFs
 - Optional media downloader (off by default, since it needs internet access)
 
 ## Privacy & Security

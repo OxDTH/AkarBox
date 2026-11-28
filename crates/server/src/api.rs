@@ -23,6 +23,12 @@ pub struct Info {
     formats: &'static [Format],
     /// Whether PDF merge/split is available (needs qpdf).
     pdf_tools: bool,
+    /// Formats that can be converted (or compressed) with the installed tools.
+    inputs: Vec<&'static str>,
+    /// Formats the installed tools can produce.
+    outputs: Vec<&'static str>,
+    /// GPU video encoder in use (`"nvenc"`, `"vaapi"`...), if any.
+    hardware_video: Option<&'static str>,
 }
 
 pub async fn info(State(state): State<AppState>) -> Json<Info> {
@@ -31,6 +37,9 @@ pub async fn info(State(state): State<AppState>) -> Json<Info> {
         converters: state.registry.converter_ids(),
         formats: FORMATS,
         pdf_tools: state.pdf_tools,
+        inputs: state.registry.input_formats(),
+        outputs: state.registry.output_formats(),
+        hardware_video: state.registry.hardware_video(),
     })
 }
 

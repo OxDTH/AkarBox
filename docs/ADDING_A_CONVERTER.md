@@ -54,6 +54,8 @@ impl Converter for MyTool {
 
 **Return value:** `Produced::File` when you wrote `step.output`. If the input naturally becomes several files (like one image per PDF page), write them into `work_dir` and return `Produced::Pages(paths)`. AkarBox zips them for the user.
 
+**Compressing in place:** an edge from a format to itself (`png -> png`) means "make it smaller". Use `same_format(&["png"], 1)` to declare those, and read `step.options.compression_for(step.from, step.to)` to know how hard to squeeze. If your result ends up *bigger* than the input, copy the input instead (see `ghostscript.rs`).
+
 **Choosing a cost:** costs add up along a route and the cheapest route wins. Use `1` for fast, lossless conversions and higher numbers for slow or lossy ones. LibreOffice uses `3` because it takes a second or two to start.
 
 ## 3. Register it

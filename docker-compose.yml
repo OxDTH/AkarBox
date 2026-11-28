@@ -9,7 +9,20 @@ services:
       AKARBOX_MAX_UPLOAD_MB: "1024"
       # AKARBOX_MAX_JOBS: "4"
       RUST_LOG: info
+      # GPU video encoding: auto (default), off, nvenc, qsv, vaapi.
+      # AKARBOX_HWACCEL: auto
     # Conversions happen in a scratch area that is wiped on restart.
     tmpfs:
       - /tmp
     restart: unless-stopped
+    # Intel/AMD GPU (VAAPI/Quick Sync): uncomment to pass the GPU through.
+    # devices:
+    #   - /dev/dri:/dev/dri
+    # NVIDIA GPU (needs the NVIDIA Container Toolkit on the host): uncomment.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu, video]

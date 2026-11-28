@@ -60,6 +60,13 @@ pub trait Converter: Send + Sync {
 
     /// Convert `step.input` into `step.output` (or into several files, see [`Produced`]).
     fn convert(&self, step: &Step) -> Result<Produced>;
+
+    /// The GPU encoder in use, if this converter has one (shown in the UI).
+    ///
+    /// This is a *default method*: converters that don't override it get `None`.
+    fn hardware_acceleration(&self) -> Option<&'static str> {
+        None
+    }
 }
 
 /// Helper: build every `from -> to` edge between two lists, skipping `x -> x`.
@@ -70,6 +77,23 @@ pub(crate) fn all_pairs(from: &[&'static str], to: &[&'static str], cost: u32) -
         .filter(|(f, t)| f != t)
         .map(|(from, to)| Edge { from, to, cost })
         .collect()
+}
+
+/// Helper: `x -> x` edges, meaning "compress without changing the format".
+pub(crate) fn same_format(formats: &[&'static str], cost: u32) -> Vec<Edge> {
+    formats
+        .iter()
+        .map(|&f| Edge {
+            from: f,
+            to: f,
+            cost,
+        })
+        .collect()
+}
+
+/// Size of a file in bytes.
+pub(crate) fn file_size(path: &Path) -> Result<u64> {
+    Ok(std::fs::metadata(path)?.len())
 }
 
 /// Run an external program and turn a non-zero exit code into an [`Error`].

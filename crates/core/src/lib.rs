@@ -26,5 +26,5 @@ mod sniff;
 pub use converter::{run_command, run_command_output, Converter, Edge, Produced, Step};
 pub use error::{Error, Result};
 pub use format::{detect_format, format_from_name, normalize_ext, Category, Format, FORMATS};
-pub use options::Options;
+pub use options::{Compression, Options};
 pub use registry::{zip_files, Output, Plan, PlannedStep, Registry, Target};

@@ -6,6 +6,21 @@
 use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 
+/// How hard to squeeze a file when compressing.
+///
+/// `rename_all = "lowercase"` means the JSON spells these `"light"`, `"balanced"`
+/// and `"strong"`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Compression {
+    /// Small savings, quality nearly untouched.
+    Light,
+    /// A good default: clearly smaller, still looks good.
+    Balanced,
+    /// As small as possible while staying usable.
+    Strong,
+}
+
 /// `#[serde(default)]` lets the JSON omit any field; missing ones get `Default`.
 /// `deny_unknown_fields` turns typos like `"qualty"` into an error instead of
 /// being silently ignored.
@@ -26,12 +41,18 @@ pub struct Options {
     pub strip_audio: bool,
     /// Resolution used when rendering PDF pages to images (default 150).
     pub dpi: Option<u32>,
+    /// Compress the output. Converting a file to its *own* format (e.g. `pdf -> pdf`)
+    /// always compresses, using `Balanced` unless this says otherwise.
+    pub compression: Option<Compression>,
+    /// Keep making the result smaller until it is at most this many kilobytes
+    /// (1 KB = 1000 bytes). Supported for images and PDFs.
+    pub target_size_kb: Option<u32>,
 }
 
 impl Options {
     /// Reject values that make no sense, *before* we start any work.
     pub fn validate(&self) -> Result<()> {
-        // A helper closure: checks an optional value is inside a range.
+        // A nested helper function: checks an optional value is inside a range.
         fn check<T: PartialOrd + std::fmt::Display + Copy>(
             name: &str,
             value: Option<T>,
@@ -51,6 +72,7 @@ impl Options {
         check("audio_bitrate_kbps", self.audio_bitrate_kbps, 8, 512)?;
         check("video_height", self.video_height, 144, 4320)?;
         check("dpi", self.dpi, 36, 600)?;
+        check("target_size_kb", self.target_size_kb, 1, 10_000_000)?;
         Ok(())
     }
 
@@ -63,6 +85,23 @@ impl Options {
             serde_json::from_str(json).map_err(|e| Error::InvalidOptions(e.to_string()))?;
         options.validate()?;
         Ok(options)
+    }
+
+    /// The compression level a step should use, if any.
+    ///
+    /// `from == to` (e.g. `png -> png`) only makes sense as compression, so it
+    /// defaults to `Balanced`.
+    pub fn compression_for(&self, from: &str, to: &str) -> Option<Compression> {
+        match self.compression {
+            Some(level) => Some(level),
+            None if from == to => Some(Compression::Balanced),
+            None => None,
+        }
+    }
+
+    /// `target_size_kb` in bytes.
+    pub fn target_bytes(&self) -> Option<u64> {
+        self.target_size_kb.map(|kb| u64::from(kb) * 1000)
     }
 
     /// ImageMagick resize geometry such as `800x600>` (`>` = only shrink).
@@ -96,5 +135,17 @@ mod tests {
 
         assert!(Options::from_json(r#"{"quality": 0}"#).is_err());
         assert!(Options::from_json(r#"{"qualty": 80}"#).is_err()); // typo
+    }
+
+    #[test]
+    fn compression_defaults_for_same_format() {
+        let o = Options::from_json(r#"{"target_size_kb": 100}"#).unwrap();
+        assert_eq!(o.compression_for("png", "png"), Some(Compression::Balanced));
+        assert_eq!(o.compression_for("png", "jpg"), None);
+        assert_eq!(o.target_bytes(), Some(100_000));
+
+        let o = Options::from_json(r#"{"compression": "strong"}"#).unwrap();
+        assert_eq!(o.compression_for("png", "jpg"), Some(Compression::Strong));
+        assert!(Options::from_json(r#"{"compression": "extreme"}"#).is_err());
     }
 }

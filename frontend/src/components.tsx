@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
-import { formatBytes } from "./util";
+import { formatBytes, sizeChange } from "./util";
 
 export function DropZone({
   onFiles,
@@ -78,16 +78,32 @@ export interface Done {
   size: number;
 }
 
-export function ResultCard({ result }: { result: Done }) {
+/** Finished file: name, size change, optional preview, download button. */
+export function ResultCard({
+  result,
+  originalSize,
+  preview,
+}: {
+  result: Done;
+  originalSize?: number;
+  preview?: "image" | "audio" | "video" | null;
+}) {
   return (
     <section className="card success">
-      <div>
-        <strong>{result.fileName}</strong>
-        <div className="muted small">{formatBytes(result.size)}</div>
+      {preview === "image" && <img className="result-preview" src={result.url} alt="Converted result" />}
+      {preview === "audio" && <audio className="result-preview" controls src={result.url} />}
+      {preview === "video" && <video className="result-preview" controls muted src={result.url} />}
+      <div className="row between">
+        <div className="file-info">
+          <strong className="filename">{result.fileName}</strong>
+          <span className="muted small">
+            {originalSize !== undefined ? sizeChange(originalSize, result.size) : formatBytes(result.size)}
+          </span>
+        </div>
+        <a className="button" href={result.url} download={result.fileName}>
+          Download
+        </a>
       </div>
-      <a className="button" href={result.url} download={result.fileName}>
-        Download
-      </a>
     </section>
   );
 }

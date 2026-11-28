@@ -25,7 +25,15 @@ export interface Info {
   converters: string[];
   formats: Format[];
   pdf_tools: boolean;
+  /** Formats the server can convert from. */
+  inputs: string[];
+  /** Formats the server can produce. */
+  outputs: string[];
+  /** GPU video encoder in use, e.g. "nvenc". */
+  hardware_video: string | null;
 }
+
+export type Compression = "light" | "balanced" | "strong";
 
 /** Mirrors `Options` in crates/core/src/options.rs. Omitted fields = defaults. */
 export interface Options {
@@ -36,6 +44,8 @@ export interface Options {
   video_height?: number;
   strip_audio?: boolean;
   dpi?: number;
+  compression?: Compression;
+  target_size_kb?: number;
 }
 
 export interface Detected {

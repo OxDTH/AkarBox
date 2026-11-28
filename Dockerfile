@@ -21,7 +21,7 @@ RUN cargo build --release --locked -p akarbox-server
 FROM debian:bookworm-slim
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      ca-certificates ffmpeg imagemagick ghostscript librsvg2-bin pandoc qpdf libheif-examples \
+      ca-certificates ffmpeg imagemagick ghostscript librsvg2-bin pandoc qpdf libheif-examples libraw-bin \
       libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui \
       fonts-dejavu fonts-liberation \
  && rm -rf /var/lib/apt/lists/* \

@@ -1,5 +1,5 @@
 import { zipSync } from "fflate";
-import type { Category } from "./api";
+import type { Category, Format } from "./api";
 
 export const CATEGORY_LABELS: Record<Category, string> = {
   image: "Images",
@@ -19,6 +19,33 @@ export function formatBytes(n: number): string {
     i++;
   }
   return `${n.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+/** "4.2 MB → 680 KB (−84%)" */
+export function sizeChange(before: number, after: number): string {
+  const pct = before > 0 ? Math.round(((after - before) / before) * 100) : 0;
+  const sign = pct > 0 ? "+" : pct < 0 ? "−" : "±";
+  return `${formatBytes(before)} → ${formatBytes(after)} (${sign}${Math.abs(pct)}%)`;
+}
+
+export function formatDuration(seconds: number): string {
+  if (!isFinite(seconds)) return "";
+  const s = Math.round(seconds);
+  const m = Math.floor(s / 60);
+  const h = Math.floor(m / 60);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return h ? `${h}:${pad(m % 60)}:${pad(s % 60)}` : `${m}:${pad(s % 60)}`;
+}
+
+export const isPdf = (f: File) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
+
+/** Formats a browser can show in an <img>, <audio> or <video> tag. */
+export function previewKind(format: Format | undefined): "image" | "audio" | "video" | null {
+  if (!format) return null;
+  if (format.category === "image") return ["png", "jpg", "webp", "gif", "bmp", "ico", "avif", "svg"].includes(format.ext) ? "image" : null;
+  if (format.category === "audio") return ["mp3", "wav", "ogg", "opus", "m4a", "aac", "flac"].includes(format.ext) ? "audio" : null;
+  if (format.category === "video") return ["mp4", "webm", "mov", "mkv"].includes(format.ext) ? "video" : null;
+  return null;
 }
 
 let counter = 0;
