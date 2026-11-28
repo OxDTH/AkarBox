@@ -55,6 +55,15 @@ pub static FORMATS: &[Format] = &[
     f("svg", "SVG vector image", Image),
     f("heic", "HEIC photo (iPhone)", Image),
     f("heif", "HEIF image", Image),
+    // Camera RAW (input only)
+    f("cr2", "Canon RAW (CR2)", Image),
+    f("cr3", "Canon RAW (CR3)", Image),
+    f("nef", "Nikon RAW (NEF)", Image),
+    f("arw", "Sony RAW (ARW)", Image),
+    f("dng", "Adobe DNG RAW", Image),
+    f("raf", "Fujifilm RAW (RAF)", Image),
+    f("rw2", "Panasonic RAW (RW2)", Image),
+    f("orf", "Olympus RAW (ORF)", Image),
     // Audio
     f("mp3", "MP3 audio", Audio),
     f("wav", "WAV audio", Audio),
@@ -170,6 +179,14 @@ mod tests {
         assert_eq!(detect_format("notes.md", b"# Hello").unwrap().ext, "md");
         assert_eq!(detect_format("data.csv", b"a,b\n1,2").unwrap().ext, "csv");
         assert!(detect_format("mystery", b"just some text").is_none());
+    }
+
+    #[test]
+    fn raw_files_that_look_like_tiff_keep_their_extension() {
+        let tiff = b"II*\0\x08\0\0\0";
+        assert_eq!(detect_format("DSC0001.NEF", tiff).unwrap().ext, "nef");
+        assert_eq!(detect_format("photo.dng", tiff).unwrap().ext, "dng");
+        assert_eq!(detect_format("scan.tif", tiff).unwrap().ext, "tiff");
     }
 
     #[test]

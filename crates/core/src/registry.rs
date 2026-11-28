@@ -92,6 +92,33 @@ impl Registry {
         self.converters.iter().map(|c| c.id()).collect()
     }
 
+    /// The GPU video encoder in use (e.g. `"nvenc"`), if any.
+    pub fn hardware_video(&self) -> Option<&'static str> {
+        self.converters
+            .iter()
+            .find_map(|c| c.hardware_acceleration())
+    }
+
+    /// Formats that can be converted to at least one other format (or compressed).
+    pub fn input_formats(&self) -> Vec<&'static str> {
+        let mut inputs: Vec<&'static str> = self.graph.keys().copied().collect();
+        inputs.sort_unstable();
+        inputs
+    }
+
+    /// Formats that at least one converter can produce.
+    pub fn output_formats(&self) -> Vec<&'static str> {
+        let mut outputs: Vec<&'static str> = self
+            .graph
+            .values()
+            .flatten()
+            .map(|(step, _)| step.to)
+            .collect();
+        outputs.sort_unstable();
+        outputs.dedup();
+        outputs
+    }
+
     /// Every format reachable from `from`, each with its cheapest plan.
     ///
     /// This is Dijkstra's shortest-path algorithm over the format graph.
@@ -130,6 +157,25 @@ impl Registry {
                 next.push(step.clone());
                 queue.push(Reverse((cost + edge_cost, step.to, next)));
             }
+        }
+
+        // Converting a file to its own format means "compress it". Dijkstra above
+        // never returns to the start, so add those direct `x -> x` edges here.
+        let same_format = self
+            .graph
+            .get(start.ext)
+            .into_iter()
+            .flatten()
+            .filter(|(step, _)| step.to == start.ext)
+            .min_by_key(|(_, cost)| *cost);
+        if let Some((step, cost)) = same_format {
+            best.insert(
+                start.ext,
+                Plan {
+                    steps: vec![step.clone()],
+                    cost: *cost,
+                },
+            );
         }
 
         let mut targets: Vec<Target> = best
@@ -295,6 +341,7 @@ mod tests {
             Box::new(Fake("image", vec![e("pdf", "png", 1), e("png", "jpg", 1)])),
             Box::new(Fake("direct", vec![e("docx", "jpg", 10)])),
             Box::new(Fake("split", vec![e("pdf", "gif", 1)])),
+            Box::new(Fake("squeeze", vec![e("png", "png", 1)])),
         ])
     }
 
@@ -312,6 +359,14 @@ mod tests {
         let plan = registry().plan("docx", "jpg").unwrap();
         assert_eq!(plan.steps.len(), 3);
         assert_eq!(plan.cost, 5);
+    }
+
+    #[test]
+    fn same_format_means_compress() {
+        let plan = registry().plan("png", "png").unwrap();
+        assert_eq!(plan.steps[0].converter, "squeeze");
+        // ...but only when a converter offers it.
+        assert!(registry().plan("docx", "docx").is_err());
     }
 
     #[test]

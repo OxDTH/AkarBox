@@ -24,7 +24,17 @@ pub fn sniff(header: &[u8]) -> Option<&'static str> {
         Some("pdf")
     } else if h.starts_with(b"BM") && h.len() >= 14 {
         Some("bmp")
+    } else if h.starts_with(b"FUJIFILMCCD-RAW") {
+        Some("raf")
+    } else if h.starts_with(b"IIU\0") {
+        Some("rw2")
+    } else if h.starts_with(b"IIRO") || h.starts_with(b"IIRS") || h.starts_with(b"MMOR") {
+        Some("orf")
+    } else if h.starts_with(b"II*\0") && at(8, b"CR") {
+        Some("cr2")
     } else if h.starts_with(b"II*\0") || h.starts_with(b"MM\0*") {
+        // Plain TIFF -- but NEF, ARW and DNG are TIFF files too, so
+        // `same_family` lets their extension win.
         Some("tiff")
     } else if h.starts_with(&[0, 0, 1, 0]) {
         Some("ico")
@@ -82,6 +92,7 @@ fn ftyp(h: &[u8]) -> Option<&'static str> {
         }
         b"avif" | b"avis" => "avif",
         b"qt  " => "mov",
+        b"crx " => "cr3", // Canon CR3 is an ISO media file
         b"M4A " | b"M4B " => "m4a",
         _ => "mp4",
     })
@@ -130,6 +141,7 @@ pub fn same_family(a: &str, b: &str) -> bool {
         &["ogg", "opus"],
         &["heic", "heif", "avif"],
         &["mp3", "aac"],
+        &["tiff", "dng", "nef", "arw", "cr2"],
     ];
     a == b || FAMILIES.iter().any(|f| f.contains(&a) && f.contains(&b))
 }
@@ -165,6 +177,10 @@ mod tests {
             ),
             (b"PK\x03\x04....mimetypeapplication/epub+zip", "epub"),
             (b"{\\rtf1\\ansi", "rtf"),
+            (b"II*\0\x10\0\0\0CR\x02\0", "cr2"),
+            (b"FUJIFILMCCD-RAW 0201", "raf"),
+            (b"IIU\0\x18\0\0\0", "rw2"),
+            (b"\0\0\0\x18ftypcrx \0\0\0\x01", "cr3"),
             (b"<?xml version=\"1.0\"?>\n<svg xmlns=", "svg"),
         ];
         for (bytes, expected) in cases {
